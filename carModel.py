@@ -1,11 +1,14 @@
 from random import random
 
 from mesa import Model, Agent
-from mesa.datacollection import DataCollector
 from mesa.space import SingleGrid
-from mesa.time import RandomActivation
+from mesa.time import BaseScheduler
+
 
 class CarModel(Model):
+    '''
+    Model class for the Schelling segregation model.
+    '''
 
     def __init__(self, height, width, dawdle_prob, car_amount):
         '''
@@ -17,7 +20,7 @@ class CarModel(Model):
         self.dawdle_prob = dawdle_prob
         self.car_amount = car_amount
 
-        self.schedule = RandomActivation(self)
+        self.schedule = BaseScheduler(self)
         self.grid = SingleGrid(height, width, torus=True)
 
         self.place_agents()
@@ -30,25 +33,14 @@ class CarModel(Model):
         the coordinates of a cell as well as
         its contents. (coord_iter)
 
+        place agents of agent_type = 0 and 1 according to the percentages in self.density and self.minority_pc
         '''
-        i = 0
-        for x, y, *_ in self.grid.coord_iter():
-            if i > self.car_amount:
-                break
-            agent = CarAgent((x, y), self, 0, 5)
-            self.grid.position_agent(agent, (x, y))
+        for i in range(self.car_amount):
+            agent = CarAgent((i, 5), self, 10)
+            self.grid.position_agent(agent, i, 5)
             self.schedule.add(agent)
-            i+=1
 
     def step(self):
-        '''
-        Run one step of the model.
-        '''
-        agents = self.schedule.agents
-        for i,k in zip(agents[0::2], agents[1::2]):
-            gap = k.pos[0] - i.pos[0]
-            if gap < i.speed:
-                i.speed = gap
         self.schedule.step()
 
 class CarAgent(Agent):
@@ -56,29 +48,39 @@ class CarAgent(Agent):
     Car agent
     '''
 
-    def __init__(self, pos, model: CarModel, speed, maxSpeed):
+    def __init__(self, pos, model: CarModel, max_speed):
         '''
-         Create a new Car agent.
+         Create a new Schelling agent.
 
          Args:
             pos: x, y : Agent initial location.
             model: The surrounding world model.
-            speed: The car's speed
+            max_speed: Car's speed threshold
         '''
         super().__init__(pos, model)
         # set in super() already, but helps the IDE with the type hints.
         self.model = model
         self.pos = pos
-        self.speed = speed
-        self.maxSpeed = maxSpeed
+        self.max_speed = max_speed
+        self.speed = 1
 
     def step(self):
-        if(self.speed < self.maxSpeed):
+        if self.speed < self.max_speed:
             self.speed+=1
+
+        tmpX = self.pos[0] + 1
+        while True:
+            if not self.model.grid.is_cell_empty(self.model.grid.torus_adj((tmpX, self.pos[1]))):
+                break
+            tmpX+=1
+        if tmpX - self.pos[0] < self.speed:
+            self.speed = tmpX - self.pos[0]
+        
         self.move()
 
     def move(self):
-        '''move this agent to an empty cell in `model.grid`. '''
-        self.model.grid.move_agent(self,
-                                   (self.pos[0]+self.speed, self.pos[1])
-                                   )
+        if self.model.grid.is_cell_empty(self.model.grid.torus_adj((self.pos[0]+self.speed, self.pos[1]))):
+            self.model.grid.move_agent(self,
+                                    self.model.grid.torus_adj((self.pos[0]+self.speed, self.pos[1]))
+                                    )
+            
