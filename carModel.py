@@ -7,7 +7,7 @@ from mesa.time import BaseScheduler
 
 class CarModel(Model):
     '''
-    Model class for the Schelling segregation model.
+    Model class for the Nagel-Schreckenberg Car model.
     '''
 
     def __init__(self, height, width, dawdle_prob, car_amount):
@@ -28,20 +28,20 @@ class CarModel(Model):
         self.running = True
 
     def place_agents(self):
-        '''
-        Set up agents. We use a grid iterator that returns
-        the coordinates of a cell as well as
-        its contents. (coord_iter)
-
-        place agents of agent_type = 0 and 1 according to the percentages in self.density and self.minority_pc
-        '''
         for i in range(self.car_amount):
-            agent = CarAgent((i, 5), self, 10)
-            self.grid.position_agent(agent, i, 5)
-            self.schedule.add(agent)
+            while True:
+                try:
+                    r = random()
+                    agent = CarAgent((int(r*100), 5), self, 10)
+                    self.grid.position_agent(agent, int(r*100), 5)
+                    self.schedule.add(agent)
+                    break
+                except Exception:
+                    continue
 
     def step(self):
         self.schedule.step()
+
 
 class CarAgent(Agent):
     '''
@@ -50,7 +50,7 @@ class CarAgent(Agent):
 
     def __init__(self, pos, model: CarModel, max_speed):
         '''
-         Create a new Schelling agent.
+         Create a new Car agent.
 
          Args:
             pos: x, y : Agent initial location.
@@ -65,22 +65,32 @@ class CarAgent(Agent):
         self.speed = 1
 
     def step(self):
+        '''
+        A single step
+        - evaluate all parameters to adjust speed and whether to move or not
+        '''
         if self.speed < self.max_speed:
-            self.speed+=1
+            self.speed += 1
 
         tmpX = self.pos[0] + 1
         while True:
             if not self.model.grid.is_cell_empty(self.model.grid.torus_adj((tmpX, self.pos[1]))):
                 break
-            tmpX+=1
+            tmpX += 1
         if tmpX - self.pos[0] < self.speed:
             self.speed = tmpX - self.pos[0]
-        
+
+        if random() < self.model.dawdle_prob:
+            self.speed -= 1
         self.move()
 
     def move(self):
+        '''
+        Actual move method
+        - only move if the cell the agent's going to be moved to is empty
+        '''
         if self.model.grid.is_cell_empty(self.model.grid.torus_adj((self.pos[0]+self.speed, self.pos[1]))):
             self.model.grid.move_agent(self,
-                                    self.model.grid.torus_adj((self.pos[0]+self.speed, self.pos[1]))
-                                    )
-            
+                                       self.model.grid.torus_adj(
+                                           (self.pos[0]+self.speed, self.pos[1]))
+                                       )

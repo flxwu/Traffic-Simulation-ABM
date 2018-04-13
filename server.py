@@ -11,8 +11,9 @@ from carModel import CarModel
 
 def car_draw(agent):
     '''
-    Portrayal Method for canvas
+    Portrayal Method for canvas with random color
     '''
+
     r = lambda: random.randint(0,255)
     color = '#%02X%02X%02X' % (r(),r(),r())
     return {"Shape": "rect", "w": 0.5,"h": 40, "Filled": "true", "Layer": 0, "Color": color, "stroke_color": "#00FF00" }
